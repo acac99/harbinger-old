@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
@@ -11,10 +11,13 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Giraffe" Version="3.4.*" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="2.1.2" />
     <PackageReference Include="TaskBuilder.fs" Version="2.1.*" />
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="MessageDto.fs" />
+    <Compile Include="MessageRepository.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

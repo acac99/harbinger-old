@@ -3,64 +3,39 @@ module harbinger.App
 open System
 open System.IO
 open Microsoft.AspNetCore.Builder
-open Microsoft.AspNetCore.Cors.Infrastructure
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.Logging
 open Microsoft.Extensions.DependencyInjection
 open Giraffe
+open Microsoft.AspNetCore.Http
+open harbinger.MessageDto
+open harbinger.MessageRepository
+open FSharp.Control.Tasks.V2.ContextInsensitive
 
-// ---------------------------------
-// Models
-// ---------------------------------
 
-type Message =
-    {
-        Text : string
-    }
 
-// ---------------------------------
-// Views
-// ---------------------------------
+let messageAddHandler : HttpHandler =
+    fun (next: HttpFunc) (ctx: HttpContext) ->
+        task {
+            let messageRepository = ctx.RequestServices.GetService(typeof<IMessageRepository>) :?> IMessageRepository
+            let! messageRequest = ctx.BindJsonAsync<MessageRequest>()
+            let! createdMessage = messageRepository.Create(messageRequest.GetMessage)
+            return! ctx.WriteJsonAsync createdMessage
+        }
+      
 
-module Views =
-    open GiraffeViewEngine
 
-    let layout (content: XmlNode list) =
-        html [] [
-            head [] [
-                title []  [ encodedText "harbinger" ]
-                link [ _rel  "stylesheet"
-                       _type "text/css"
-                       _href "/main.css" ]
-            ]
-            body [] content
-        ]
-
-    let partial () =
-        h1 [] [ encodedText "harbinger" ]
-
-    let index (model : Message) =
-        [
-            partial()
-            p [] [ encodedText model.Text ]
-        ] |> layout
-
-// ---------------------------------
-// Web app
-// ---------------------------------
-
-let indexHandler (name : string) =
-    let greetings = sprintf "Hello %s, from Giraffe!" name
-    let model     = { Text = greetings }
-    let view      = Views.index model
-    htmlView view
 
 let webApp =
     choose [
-        GET >=>
+        GET >=> 
             choose [
-                route "/" >=> indexHandler "world"
-                routef "/hello/%s" indexHandler
+                route "/message" >=> text "test"
+            ]
+        
+        POST >=>
+            choose [
+                route "/message" >=> messageAddHandler
             ]
         setStatusCode 404 >=> text "Not Found" ]
 
@@ -76,11 +51,6 @@ let errorHandler (ex : Exception) (logger : ILogger) =
 // Config and Main
 // ---------------------------------
 
-let configureCors (builder : CorsPolicyBuilder) =
-    builder.WithOrigins("http://localhost:8080")
-           .AllowAnyMethod()
-           .AllowAnyHeader()
-           |> ignore
 
 let configureApp (app : IApplicationBuilder) =
     let env = app.ApplicationServices.GetService<IHostingEnvironment>()
@@ -88,11 +58,16 @@ let configureApp (app : IApplicationBuilder) =
     | true  -> app.UseDeveloperExceptionPage()
     | false -> app.UseGiraffeErrorHandler errorHandler)
         .UseHttpsRedirection()
-        .UseCors(configureCors)
         .UseStaticFiles()
         .UseGiraffe(webApp)
 
 let configureServices (services : IServiceCollection) =
+    services.AddTransient<IMessageRepository, MessageRepository>() |> ignore
+    services.AddEntityFrameworkNpgsql()
+        .AddDbContext<HarbingerContext>()
+        .BuildServiceProvider() |> ignore
+    services.AddCors() |> ignore
+    services.AddGiraffe() |> ignore
     services.AddCors()    |> ignore
     services.AddGiraffe() |> ignore
 
