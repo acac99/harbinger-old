@@ -11,16 +11,24 @@ open Microsoft.AspNetCore.Http
 open harbinger.MessageDto
 open harbinger.MessageRepository
 open FSharp.Control.Tasks.V2.ContextInsensitive
+open Giraffe.HttpStatusCodeHandlers
+open MediatR;
+open harbinger.Commands
 
 
 
 let messageAddHandler : HttpHandler =
     fun (next: HttpFunc) (ctx: HttpContext) ->
         task {
-            let messageRepository = ctx.RequestServices.GetService(typeof<IMessageRepository>) :?> IMessageRepository
-            let! messageRequest = ctx.BindJsonAsync<MessageRequest>()
-            let! createdMessage = messageRepository.Create(messageRequest.GetMessage)
-            return! ctx.WriteJsonAsync createdMessage
+              let mediator = ctx.RequestServices.GetService(typeof<IMediator>) :?> IMediator
+              let! command = ctx.BindJsonAsync<CreateMessageCommand>()
+              mediator.Send(command) |> Async.AwaitTask |> ignore
+              return! ctx.WriteJsonAsync "Woo"
+              
+//            let messageRepository = ctx.RequestServices.GetService(typeof<IMessageRepository>) :?> IMessageRepository
+//            let! messageRequest = ctx.BindJsonAsync<MessageRequest>()
+//            let! createdMessage = messageRepository.Create(messageRequest.GetMessage)
+//            return! ctx.WriteJsonAsync createdMessage
         }
       
 
@@ -70,6 +78,7 @@ let configureServices (services : IServiceCollection) =
     services.AddGiraffe() |> ignore
     services.AddCors()    |> ignore
     services.AddGiraffe() |> ignore
+    services.AddMediatR(typeof<CreateMessageCommand>) |> ignore
 
 let configureLogging (builder : ILoggingBuilder) =
     builder.AddFilter(fun l -> l.Equals LogLevel.Error)
